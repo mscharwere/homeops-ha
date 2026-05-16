@@ -1,0 +1,11 @@
+{
+  "domain": "homeops",
+  "name": "HomeOps",
+  "version": "0.1.0",
+  "config_flow": true,
+  "integration_type": "service",
+  "documentation": "https://github.com/mscharwere/homeops-ha",
+  "requirements": [],
+  "iot_class": "local_polling",
+  "codeowners": ["@mscharwere"]
+}
