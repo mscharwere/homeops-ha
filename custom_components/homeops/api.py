@@ -32,7 +32,7 @@ class HomeOpsClient:
     ) -> None:
         self._session = session
         self._base_url = base_url.rstrip("/")
-        self._headers = {"X-API-Key": api_key}
+        self._headers = {"Authorization": f"Bearer {api_key}"}
 
     # ── Health ─────────────────────────────────────────────────────────────────
 
