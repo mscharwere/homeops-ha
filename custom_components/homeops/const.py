@@ -28,7 +28,7 @@ SENSOR_MAINT_OVERDUE_COUNT = "maint_overdue_count"
 BINARY_SENSOR_MAINT_DUE_TODAY = "maint_due_today"
 
 # API paths
-API_HEALTH = "/api/health"
+API_HEALTH = "/health"
 API_MAINT_COUNTERS = "/api/maintenance/counters"
 API_MAINT_COMPLETIONS = "/api/maintenance/completions"
 API_MAINT_PICK = "/api/maintenance/pick"
