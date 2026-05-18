@@ -57,4 +57,4 @@ class HomeOpsMaintDueTodaySensor(
         if self.coordinator.data is None:
             return None
         counters: list[dict] = self.coordinator.data.get(DATA_COUNTERS, [])
-        return any(c.get("overdue", False) for c in counters)
+        return any(c.get("status") == "overdue" for c in counters)

@@ -45,7 +45,7 @@ class HomeOpsClient:
     async def list_counters(self) -> list[dict]:
         """GET /api/maintenance/counters — full catalog with current counter state."""
         resp = await self._request("GET", API_MAINT_COUNTERS)
-        return resp["data"]  # type: ignore[index]
+        return resp.get("data") or []
 
     async def complete_item(self, catalog_id: int) -> dict:
         """POST /api/maintenance/completions — log a completion."""
