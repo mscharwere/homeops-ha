@@ -44,7 +44,8 @@ class HomeOpsClient:
 
     async def list_counters(self) -> list[dict]:
         """GET /api/maintenance/counters — full catalog with current counter state."""
-        return await self._request("GET", API_MAINT_COUNTERS)  # type: ignore[return-value]
+        resp = await self._request("GET", API_MAINT_COUNTERS)
+        return resp.get("data") or []
 
     async def complete_item(self, catalog_id: int) -> dict:
         """POST /api/maintenance/completions — log a completion."""
@@ -62,9 +63,10 @@ class HomeOpsClient:
     async def get_pick(self, surface: str) -> dict | None:
         """GET /api/maintenance/pick?surface=<surface> — returns top pick or null."""
         try:
-            return await self._request(  # type: ignore[return-value]
+            resp = await self._request(
                 "GET", API_MAINT_PICK, params={"surface": surface}
             )
+            return resp.get("data")  # type: ignore[union-attr]
         except HomeOpsApiError as err:
             # 404 means no pick available for this surface
             if "404" in str(err):

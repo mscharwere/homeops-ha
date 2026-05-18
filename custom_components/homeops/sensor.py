@@ -160,4 +160,4 @@ class HomeOpsOverdueCountSensor(CoordinatorEntity[HomeOpsCoordinator], SensorEnt
         if self.coordinator.data is None:
             return 0
         counters: list[dict] = self.coordinator.data.get(DATA_COUNTERS, [])
-        return sum(1 for c in counters if c.get("overdue", False))
+        return sum(1 for c in counters if c.get("status") == "overdue")

@@ -26,7 +26,7 @@ class HomeOpsCoordinator(DataUpdateCoordinator[dict]):
 
     coordinator.data shape:
     {
-        "counters":      [{"id": 1, "catalog_id": 3, "label": "...", "overdue": True, ...}],
+        "counters":      [{"id": 1, "catalog_id": 3, "label": "...", "status": "overdue", ...}],
         "pick_morning":  {"catalog_id": 3, "label": "...", "duration_min": 15, ...} | None,
         "pick_evening":  {...} | None,
         "pick_weekend":  {...} | None,
