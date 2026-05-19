@@ -1,0 +1,47 @@
+complete_item:
+  name: Complete Maintenance Item
+  description: >
+    Log a completion for a HomeOps maintenance catalog item. The coordinator
+    data is refreshed immediately after the API call so sensors update without
+    waiting for the next poll interval.
+  fields:
+    item_code:
+      name: Item Code
+      description: >
+        The catalog code for the maintenance item (e.g. "keurig_filter",
+        "furnace_filter"). Must match the ``code`` field returned by the
+        HomeOps API, or the slugified form of the item label.
+      required: true
+      example: keurig_filter
+      selector:
+        text:
+
+snooze_item:
+  name: Snooze Maintenance Item
+  description: >
+    Push the due date of a HomeOps maintenance item forward by N days. The
+    coordinator data is refreshed immediately after the API call.
+  fields:
+    item_code:
+      name: Item Code
+      description: >
+        The catalog code for the maintenance item (e.g. "keurig_filter",
+        "furnace_filter"). Must match the ``code`` field returned by the
+        HomeOps API, or the slugified form of the item label.
+      required: true
+      example: keurig_filter
+      selector:
+        text:
+    days:
+      name: Days
+      description: >
+        Number of days to snooze the item. Defaults to 7 if omitted.
+        Accepted range: 1–365.
+      required: false
+      default: 7
+      example: 14
+      selector:
+        number:
+          min: 1
+          max: 365
+          unit_of_measurement: days
