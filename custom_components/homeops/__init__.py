@@ -48,11 +48,13 @@ SCHEMA_SNOOZE_ITEM = vol.Schema(
 
 SCHEMA_POST_CONDITION_SIGNAL = vol.Schema(
     {
-        vol.Required("code"): cv.string,
+        # Restrict to catalog code format — prevents path traversal in URL construction.
+        vol.Required("code"): vol.All(cv.string, vol.Match(r"^[a-z0-9_]{1,64}$")),
         vol.Required("urgency"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
         vol.Required("source"): cv.string,
         vol.Optional("reason"): cv.string,
-        vol.Optional("valid_for_hours"): vol.All(vol.Coerce(float), vol.Range(min=0)),
+        # min=0.1 — zero-TTL would expire the signal on arrival (silent no-op).
+        vol.Optional("valid_for_hours"): vol.All(vol.Coerce(float), vol.Range(min=0.1)),
     }
 )
 
@@ -183,9 +185,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             reason: str | None = call.data.get("reason")
             valid_for_hours    = call.data.get("valid_for_hours")
 
-            client_ref: HomeOpsClient = next(
-                iter(hass.data[DOMAIN].values())
-            )["client"]
+            entry_data = next(iter(hass.data[DOMAIN].values()))
+            client_ref: HomeOpsClient = entry_data["client"]
+            coordinator_ref: HomeOpsCoordinator = entry_data["coordinator"]
 
             try:
                 await client_ref.post_condition_signal(
@@ -200,6 +202,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     f"HomeOps post_condition_signal failed for '{code}': {err}"
                 ) from err
 
+            await coordinator_ref.async_request_refresh()
             _LOGGER.info(
                 "homeops.post_condition_signal: code=%s urgency=%.3f source=%s",
                 code, urgency, source,
