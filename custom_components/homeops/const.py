@@ -27,6 +27,10 @@ SENSOR_MAINT_PICK_WEEKEND = "maint_pick_weekend"
 SENSOR_MAINT_OVERDUE_COUNT = "maint_overdue_count"
 BINARY_SENSOR_MAINT_DUE_TODAY = "maint_due_today"
 
+# Service names
+SERVICE_COMPLETE_ITEM = "complete_item"
+SERVICE_SNOOZE_ITEM = "snooze_item"
+
 # API paths
 API_HEALTH = "/health"
 API_MAINT_COUNTERS = "/api/maintenance/counters"
