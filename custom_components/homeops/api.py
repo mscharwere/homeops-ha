@@ -7,6 +7,7 @@ import aiohttp
 from .const import (
     API_HEALTH,
     API_MAINT_COMPLETIONS,
+    API_MAINT_CONDITIONS,
     API_MAINT_COUNTERS,
     API_MAINT_PICK,
     API_MAINT_SNOOZE,
@@ -72,6 +73,34 @@ class HomeOpsClient:
             if "404" in str(err):
                 return None
             raise
+
+    # ── Condition signals ──────────────────────────────────────────────────────
+
+    async def post_condition_signal(
+        self,
+        code: str,
+        urgency: float,
+        source: str,
+        reason: str | None = None,
+        valid_for_hours: float | None = None,
+    ) -> dict:
+        """POST /api/maintenance/conditions/:code — upsert a condition signal.
+
+        Args:
+            code:            Catalog item code, e.g. 'oliver_feeder_desiccant'.
+            urgency:         Float 0.0–1.0. ≥ condition_pick_min_urgency surfaces
+                             the item; 1.0 = overdue.
+            source:          Identifier for the signal source, e.g. 'ha.feeder_humidity'.
+            reason:          Optional human-readable explanation shown in the UI.
+            valid_for_hours: TTL override. Defaults to catalog's condition_ttl_hours.
+        """
+        path = API_MAINT_CONDITIONS.replace("{code}", code)
+        payload: dict = {"urgency": round(float(urgency), 4), "source": source}
+        if reason is not None:
+            payload["reason"] = reason
+        if valid_for_hours is not None:
+            payload["valid_for_hours"] = valid_for_hours
+        return await self._request("POST", path, json=payload)  # type: ignore[return-value]
 
     # ── Internal ──────────────────────────────────────────────────────────────
 

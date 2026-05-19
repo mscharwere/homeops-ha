@@ -45,3 +45,64 @@ snooze_item:
           min: 1
           max: 365
           unit_of_measurement: days
+
+post_condition_signal:
+  name: Post Condition Signal
+  description: >
+    Upsert a condition signal for a HomeOps condition-type catalog item.
+    Use this to drive urgency from HA sensor data (e.g. humidity, power draw)
+    rather than a daily clock. The signal expires after valid_for_hours so
+    HomeOps degrades gracefully if HA goes offline.
+  fields:
+    code:
+      name: Item Code
+      description: >
+        Catalog code of the condition item, e.g. "oliver_feeder_desiccant".
+        Must match a catalog item with counter_type='condition'.
+      required: true
+      example: oliver_feeder_desiccant
+      selector:
+        text:
+    urgency:
+      name: Urgency
+      description: >
+        Float 0.0–1.0. Values >= condition_pick_min_urgency surface the item
+        in the picker; 1.0 = overdue.
+      required: true
+      example: 0.65
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.001
+          mode: box
+    source:
+      name: Source
+      description: >
+        Identifier for the signal source shown in HomeOps UI, e.g.
+        "ha.feeder_humidity".
+      required: true
+      example: ha.feeder_humidity
+      selector:
+        text:
+    reason:
+      name: Reason
+      description: >
+        Human-readable explanation displayed in HomeOps maintenance cards.
+      required: false
+      example: 42.5 high-humidity hours accumulated; 18 days since replaced
+      selector:
+        text:
+    valid_for_hours:
+      name: Valid For (hours)
+      description: >
+        TTL override in hours. Defaults to the catalog item's condition_ttl_hours.
+        Automations posting hourly typically use 2.
+      required: false
+      example: 2
+      selector:
+        number:
+          min: 0
+          max: 720
+          step: 0.5
+          unit_of_measurement: hours
