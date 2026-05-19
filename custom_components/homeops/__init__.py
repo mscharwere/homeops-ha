@@ -22,6 +22,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     SERVICE_COMPLETE_ITEM,
+    SERVICE_POST_CONDITION_SIGNAL,
     SERVICE_SNOOZE_ITEM,
 )
 from .coordinator import HomeOpsCoordinator
@@ -42,6 +43,18 @@ SCHEMA_SNOOZE_ITEM = vol.Schema(
     {
         vol.Required("item_code"): cv.string,
         vol.Optional("days", default=7): vol.All(int, vol.Range(min=1, max=365)),
+    }
+)
+
+SCHEMA_POST_CONDITION_SIGNAL = vol.Schema(
+    {
+        # Restrict to catalog code format — prevents path traversal in URL construction.
+        vol.Required("code"): vol.All(cv.string, vol.Match(r"^[a-z0-9_]{1,64}$")),
+        vol.Required("urgency"): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+        vol.Required("source"): cv.string,
+        vol.Optional("reason"): cv.string,
+        # min=0.1 — zero-TTL would expire the signal on arrival (silent no-op).
+        vol.Optional("valid_for_hours"): vol.All(vol.Coerce(float), vol.Range(min=0.1)),
     }
 )
 
@@ -163,6 +176,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SCHEMA_SNOOZE_ITEM,
         )
 
+    if not hass.services.has_service(DOMAIN, SERVICE_POST_CONDITION_SIGNAL):
+        async def handle_post_condition_signal(call: ServiceCall) -> None:
+            """Handle homeops.post_condition_signal service call."""
+            code: str          = call.data["code"]
+            urgency: float     = call.data["urgency"]
+            source: str        = call.data["source"]
+            reason: str | None = call.data.get("reason")
+            valid_for_hours    = call.data.get("valid_for_hours")
+
+            entry_data = next(iter(hass.data[DOMAIN].values()))
+            client_ref: HomeOpsClient = entry_data["client"]
+            coordinator_ref: HomeOpsCoordinator = entry_data["coordinator"]
+
+            try:
+                await client_ref.post_condition_signal(
+                    code=code,
+                    urgency=urgency,
+                    source=source,
+                    reason=reason,
+                    valid_for_hours=valid_for_hours,
+                )
+            except HomeOpsApiError as err:
+                raise HomeAssistantError(
+                    f"HomeOps post_condition_signal failed for '{code}': {err}"
+                ) from err
+
+            await coordinator_ref.async_request_refresh()
+            _LOGGER.info(
+                "homeops.post_condition_signal: code=%s urgency=%.3f source=%s",
+                code, urgency, source,
+            )
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_POST_CONDITION_SIGNAL,
+            handle_post_condition_signal,
+            schema=SCHEMA_POST_CONDITION_SIGNAL,
+        )
+
     return True
 
 
@@ -176,5 +228,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.data.get(DOMAIN):
         hass.services.async_remove(DOMAIN, SERVICE_COMPLETE_ITEM)
         hass.services.async_remove(DOMAIN, SERVICE_SNOOZE_ITEM)
+        hass.services.async_remove(DOMAIN, SERVICE_POST_CONDITION_SIGNAL)
 
     return unloaded

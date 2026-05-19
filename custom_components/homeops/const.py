@@ -30,6 +30,7 @@ BINARY_SENSOR_MAINT_DUE_TODAY = "maint_due_today"
 # Service names
 SERVICE_COMPLETE_ITEM = "complete_item"
 SERVICE_SNOOZE_ITEM = "snooze_item"
+SERVICE_POST_CONDITION_SIGNAL = "post_condition_signal"
 
 # API paths
 API_HEALTH = "/health"
@@ -37,3 +38,4 @@ API_MAINT_COUNTERS = "/api/maintenance/counters"
 API_MAINT_COMPLETIONS = "/api/maintenance/completions"
 API_MAINT_PICK = "/api/maintenance/pick"
 API_MAINT_SNOOZE = "/api/maintenance/counters/{id}/snooze"
+API_MAINT_CONDITIONS = "/api/maintenance/conditions/{code}"
