@@ -62,15 +62,17 @@ SCHEMA_POST_CONDITION_SIGNAL = vol.Schema(
 SCHEMA_POST_VACUUM_ZONE_SIGNAL = vol.Schema(
     {
         vol.Required("zone_label"): cv.string,
-        vol.Required("unit_ha_entity_id"): cv.string,
+        vol.Required("unit_name"): cv.string,
+        vol.Required("source"): cv.string,
         vol.Required("signal_weight"): vol.All(vol.Coerce(float), vol.Range(min=0)),
         # cascade is an optional list of {"zone_label": str, "weight_pct": float} dicts.
+        # weight_pct is 0–100 (percent); the backend divides by 100 internally.
         vol.Optional("cascade"): [
             vol.Schema(
                 {
                     vol.Required("zone_label"): cv.string,
                     vol.Required("weight_pct"): vol.All(
-                        vol.Coerce(float), vol.Range(min=0, max=1)
+                        vol.Coerce(float), vol.Range(min=0, max=100)
                     ),
                 }
             )
@@ -238,10 +240,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.services.has_service(DOMAIN, SERVICE_POST_VACUUM_ZONE_SIGNAL):
         async def handle_post_vacuum_zone_signal(call: ServiceCall) -> None:
             """Handle homeops.post_vacuum_zone_signal service call."""
-            zone_label: str           = call.data["zone_label"]
-            unit_ha_entity_id: str    = call.data["unit_ha_entity_id"]
-            signal_weight: float      = call.data["signal_weight"]
-            cascade: list | None      = call.data.get("cascade")
+            zone_label: str      = call.data["zone_label"]
+            unit_name: str       = call.data["unit_name"]
+            source: str          = call.data["source"]
+            signal_weight: float = call.data["signal_weight"]
+            cascade: list | None = call.data.get("cascade")
 
             entry_data = next(iter(hass.data[DOMAIN].values()))
             client_ref: HomeOpsClient = entry_data["client"]
@@ -249,7 +252,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             try:
                 await client_ref.post_vacuum_zone_signal(
                     zone_label=zone_label,
-                    unit_ha_entity_id=unit_ha_entity_id,
+                    unit_name=unit_name,
+                    source=source,
                     signal_weight=signal_weight,
                     cascade=cascade,
                 )
@@ -259,8 +263,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 ) from err
 
             _LOGGER.info(
-                "homeops.post_vacuum_zone_signal: zone=%s unit=%s weight=%.1f",
-                zone_label, unit_ha_entity_id, signal_weight,
+                "homeops.post_vacuum_zone_signal: zone=%s unit=%s source=%s weight=%.1f",
+                zone_label, unit_name, source, signal_weight,
             )
 
         hass.services.async_register(

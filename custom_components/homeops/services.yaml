@@ -126,15 +126,23 @@ post_vacuum_zone_signal:
       example: Litter Box
       selector:
         text:
-    unit_ha_entity_id:
-      name: Vacuum Entity ID
+    unit_name:
+      name: Unit Nickname
       description: >
-        HA entity ID of the vacuum responsible for this zone, e.g. "vacuum.ethan".
+        Unit nickname as stored in the HomeOps database (e.g. "Ethan", "Sam").
+        The backend resolves by LOWER(nickname) — must match the DB row exactly.
       required: true
-      example: vacuum.ethan
+      example: Ethan
       selector:
-        entity:
-          domain: vacuum
+        text:
+    source:
+      name: Source
+      description: >
+        Signal source identifier shown in HomeOps UI, e.g. "petivity".
+      required: true
+      example: petivity
+      selector:
+        text:
     signal_weight:
       name: Signal Weight
       description: >
@@ -153,8 +161,8 @@ post_vacuum_zone_signal:
       description: >
         Optional list of adjacent zones to receive a fractional share of this
         signal. Each entry must have "zone_label" (string) and "weight_pct"
-        (float 0.0–1.0). The backend applies the cascade automatically.
+        (0–100 percent, e.g. 40 for 40%). The backend divides by 100 internally.
       required: false
-      example: '[{"zone_label": "Hallway", "weight_pct": 0.4}]'
+      example: '[{"zone_label": "Hallway", "weight_pct": 40}]'
       selector:
         object:

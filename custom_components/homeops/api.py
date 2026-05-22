@@ -108,23 +108,26 @@ class HomeOpsClient:
     async def post_vacuum_zone_signal(
         self,
         zone_label: str,
-        unit_ha_entity_id: str,
+        unit_name: str,
+        source: str,
         signal_weight: float,
         cascade: list[dict] | None = None,
     ) -> dict:
         """POST /api/vacuum/zones/signal — post a dirtiness signal for a vacuum zone.
 
         Args:
-            zone_label:          Zone label as configured in HomeOps (e.g. 'Litter Box').
-            unit_ha_entity_id:   The HA vacuum entity responsible for this zone
-                                 (e.g. 'vacuum.ethan').
-            signal_weight:       Relative dirtiness weight (positive float).
-            cascade:             Optional list of cascade targets, e.g.
-                                 [{"zone_label": "Hallway", "weight_pct": 0.4}].
+            zone_label:    Zone label as configured in HomeOps (e.g. 'Litter Box').
+            unit_name:     Unit nickname as stored in the DB (e.g. 'Ethan').
+                           The backend resolves by LOWER(nickname) — must match exactly.
+            source:        Signal source identifier (e.g. 'petivity').
+            signal_weight: Relative dirtiness weight (positive float).
+            cascade:       Optional list of cascade targets, e.g.
+                           [{"zone_label": "Hallway", "weight_pct": 40}].
         """
         payload: dict = {
             "zone_label": zone_label,
-            "unit_ha_entity_id": unit_ha_entity_id,
+            "unit_name": unit_name,
+            "source": source,
             "signal_weight": round(float(signal_weight), 4),
         }
         if cascade is not None:
