@@ -23,6 +23,7 @@ from .const import (
     DOMAIN,
     SERVICE_COMPLETE_ITEM,
     SERVICE_POST_CONDITION_SIGNAL,
+    SERVICE_POST_VACUUM_ZONE_SIGNAL,
     SERVICE_SNOOZE_ITEM,
 )
 from .coordinator import HomeOpsCoordinator
@@ -55,6 +56,27 @@ SCHEMA_POST_CONDITION_SIGNAL = vol.Schema(
         vol.Optional("reason"): cv.string,
         # min=0.1 — zero-TTL would expire the signal on arrival (silent no-op).
         vol.Optional("valid_for_hours"): vol.All(vol.Coerce(float), vol.Range(min=0.1)),
+    }
+)
+
+SCHEMA_POST_VACUUM_ZONE_SIGNAL = vol.Schema(
+    {
+        vol.Required("zone_label"): cv.string,
+        vol.Required("unit_name"): cv.string,
+        vol.Required("source"): cv.string,
+        vol.Required("signal_weight"): vol.All(vol.Coerce(float), vol.Range(min=0)),
+        # cascade is an optional list of {"zone_label": str, "weight_pct": float} dicts.
+        # weight_pct is 0–100 (percent); the backend divides by 100 internally.
+        vol.Optional("cascade"): [
+            vol.Schema(
+                {
+                    vol.Required("zone_label"): cv.string,
+                    vol.Required("weight_pct"): vol.All(
+                        vol.Coerce(float), vol.Range(min=0, max=100)
+                    ),
+                }
+            )
+        ],
     }
 )
 
@@ -215,6 +237,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SCHEMA_POST_CONDITION_SIGNAL,
         )
 
+    if not hass.services.has_service(DOMAIN, SERVICE_POST_VACUUM_ZONE_SIGNAL):
+        async def handle_post_vacuum_zone_signal(call: ServiceCall) -> None:
+            """Handle homeops.post_vacuum_zone_signal service call."""
+            zone_label: str      = call.data["zone_label"]
+            unit_name: str       = call.data["unit_name"]
+            source: str          = call.data["source"]
+            signal_weight: float = call.data["signal_weight"]
+            cascade: list | None = call.data.get("cascade")
+
+            entry_data = next(iter(hass.data[DOMAIN].values()))
+            client_ref: HomeOpsClient = entry_data["client"]
+
+            try:
+                await client_ref.post_vacuum_zone_signal(
+                    zone_label=zone_label,
+                    unit_name=unit_name,
+                    source=source,
+                    signal_weight=signal_weight,
+                    cascade=cascade,
+                )
+            except HomeOpsApiError as err:
+                raise HomeAssistantError(
+                    f"HomeOps post_vacuum_zone_signal failed for zone '{zone_label}': {err}"
+                ) from err
+
+            _LOGGER.info(
+                "homeops.post_vacuum_zone_signal: zone=%s unit=%s source=%s weight=%.1f",
+                zone_label, unit_name, source, signal_weight,
+            )
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_POST_VACUUM_ZONE_SIGNAL,
+            handle_post_vacuum_zone_signal,
+            schema=SCHEMA_POST_VACUUM_ZONE_SIGNAL,
+        )
+
     return True
 
 
@@ -229,5 +288,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_remove(DOMAIN, SERVICE_COMPLETE_ITEM)
         hass.services.async_remove(DOMAIN, SERVICE_SNOOZE_ITEM)
         hass.services.async_remove(DOMAIN, SERVICE_POST_CONDITION_SIGNAL)
+        hass.services.async_remove(DOMAIN, SERVICE_POST_VACUUM_ZONE_SIGNAL)
 
     return unloaded

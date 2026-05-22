@@ -1,0 +1,107 @@
+# =============================================================================
+# PETIVITY LITTER BOX — HomeOps Dirtiness Signal
+# =============================================================================
+# When a Petivity litter-box visit notification arrives via smsGateway,
+# parse the visiting cat and POST a weighted dirtiness signal to the
+# HomeOps vacuum zone API.
+#
+# Trigger path:
+#   Petivity app (Android) → MacroDroid intercepts push notification
+#     → POST to smsGateway /webhook/notification
+#       → smsGateway SSE fires smsgateway_notification HA bus event
+#         → this automation
+#
+# Cat weights (dirtiness contribution per visit):
+#   Oliver  = 15  (messier cat, higher weight)
+#   Pancho  = 8
+#   Sasha   = 8
+#   unknown = 10  (fallback for any unrecognized name)
+#
+# Target zone:   "Litter Box"  (sub-zone of Hallway, Floor 1, Ethan's territory)
+# Cascade:       Hallway at 40% weight (HomeOps handles the cascade)
+# Both litter boxes ("Downstairs monitor" + "Family room") route to the same
+# HomeOps zone and vacuum — both are Floor 1, Ethan covers both.
+#
+# Non-visit notifications (e.g. "Time to Freshen Up", "Petivity Alert",
+# health alerts) are filtered by requiring "Visited" in the title.
+#
+# Auth: homeops.post_vacuum_zone_signal uses the API key stored in the
+# HomeOps config entry — no secrets in this YAML file.
+#
+# Canonical location: C:/repos/homeops-ha/packages/petivity_litter_box.yaml
+# Mirror to:          C:/repos/home-assistant-config/packages/vacuumops/petivity_litter_box.yaml
+#
+# Shipped: 2026-05-22 by GERTY
+# =============================================================================
+
+automation:
+
+  - id: petivity_litter_box_dirtiness_signal
+    alias: "Petivity — Litter Box Visit → HomeOps Dirtiness Signal"
+    description: >
+      When a Petivity cat visit notification arrives via smsGateway, parse the
+      visiting cat name, look up the per-cat dirtiness weight, and POST a signal
+      to the HomeOps vacuum zone API for the Litter Box zone (Ethan / Floor 1).
+      Cascades 40% of the signal to the Hallway zone automatically.
+    mode: queued
+    max: 5
+
+    triggers:
+      - trigger: event
+        event_type: smsgateway_notification
+
+    # Filter to Petivity app + visit notifications only.
+    # "Visited" appears in the title of every cat-visit notification.
+    # Other Petivity titles ("Time to Freshen Up", "Petivity Alert",
+    # health-alert bodies) do NOT contain "Visited" and are ignored.
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.event.data.get('packageName') == 'com.nestle.us.purina.petivity'
+             and 'Visited' in (trigger.event.data.get('title') | default('')) }}
+
+    actions:
+      - variables:
+          # Title format: "<CatName> Visited <BoxName> Litter Box"
+          # First word of the title is always the cat's name.
+          raw_title: "{{ trigger.event.data.get('title') | default('') }}"
+          cat_name: "{{ raw_title.split(' ')[0] | lower }}"
+
+          # Per-cat weight lookup. Unknown name falls through to default (10).
+          cat_weight: >
+            {% if cat_name == 'oliver' %}
+              15
+            {% elif cat_name in ['pancho', 'sasha'] %}
+              8
+            {% else %}
+              10
+            {% endif %}
+
+          # Litter box location for logging (extracted from title).
+          # "Downstairs monitor" or "Family room" — both route to same zone.
+          box_location: >
+            {% if 'Downstairs monitor' in raw_title %}
+              Downstairs monitor
+            {% elif 'Family room' in raw_title %}
+              Family room
+            {% else %}
+              unknown
+            {% endif %}
+
+      - action: homeops.post_vacuum_zone_signal
+        data:
+          zone_label: "Litter Box"
+          unit_name: "Ethan"
+          source: "petivity"
+          signal_weight: "{{ cat_weight | int }}"
+          cascade:
+            - zone_label: "Hallway"
+              weight_pct: 40
+
+      - action: system_log.write
+        data:
+          message: >
+            Petivity: {{ raw_title | default('(no title)') }}
+            → cat={{ cat_name }}, box={{ box_location }}, weight={{ cat_weight }}
+            → HomeOps signal posted (Litter Box + Hallway cascade 40%)
+          level: info

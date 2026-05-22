@@ -11,6 +11,7 @@ from .const import (
     API_MAINT_COUNTERS,
     API_MAINT_PICK,
     API_MAINT_SNOOZE,
+    API_VACUUM_ZONE_SIGNAL,
 )
 
 
@@ -101,6 +102,37 @@ class HomeOpsClient:
         if valid_for_hours is not None:
             payload["valid_for_hours"] = valid_for_hours
         return await self._request("POST", path, json=payload)  # type: ignore[return-value]
+
+    # ── Vacuum zone signals ───────────────────────────────────────────────────
+
+    async def post_vacuum_zone_signal(
+        self,
+        zone_label: str,
+        unit_name: str,
+        source: str,
+        signal_weight: float,
+        cascade: list[dict] | None = None,
+    ) -> dict:
+        """POST /api/vacuum/zones/signal — post a dirtiness signal for a vacuum zone.
+
+        Args:
+            zone_label:    Zone label as configured in HomeOps (e.g. 'Litter Box').
+            unit_name:     Unit nickname as stored in the DB (e.g. 'Ethan').
+                           The backend resolves by LOWER(nickname) — must match exactly.
+            source:        Signal source identifier (e.g. 'petivity').
+            signal_weight: Relative dirtiness weight (positive float).
+            cascade:       Optional list of cascade targets, e.g.
+                           [{"zone_label": "Hallway", "weight_pct": 40}].
+        """
+        payload: dict = {
+            "zone_label": zone_label,
+            "unit_name": unit_name,
+            "source": source,
+            "signal_weight": round(float(signal_weight), 4),
+        }
+        if cascade is not None:
+            payload["cascade"] = cascade
+        return await self._request("POST", API_VACUUM_ZONE_SIGNAL, json=payload)  # type: ignore[return-value]
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
