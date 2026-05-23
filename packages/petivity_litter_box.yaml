@@ -57,7 +57,7 @@ automation:
     conditions:
       - condition: template
         value_template: >
-          {{ trigger.event.data.get('packageName') == 'com.nestle.us.purina.petivity'
+          {{ trigger.event.data.get('package_name') == 'com.nestle.us.purina.petivity'
              and 'Visited' in (trigger.event.data.get('title') | default('')) }}
 
     actions:
