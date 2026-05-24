@@ -12,7 +12,7 @@
 #         → this automation
 #
 # Cat weights (dirtiness contribution per visit):
-#   Oliver  = 15  (messier cat, higher weight)
+#   Oliver  = 60  (kicks litter out of box — one visit is near-cleaning threshold)
 #   Pancho  = 8
 #   Sasha   = 8
 #   unknown = 10  (fallback for any unrecognized name)
@@ -70,7 +70,7 @@ automation:
           # Per-cat weight lookup. Unknown name falls through to default (10).
           cat_weight: >
             {% if cat_name == 'oliver' %}
-              15
+              60
             {% elif cat_name in ['pancho', 'sasha'] %}
               8
             {% else %}
