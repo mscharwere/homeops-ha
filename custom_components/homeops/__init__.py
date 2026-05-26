@@ -63,7 +63,7 @@ SCHEMA_POST_VACUUM_ZONE_SIGNAL = vol.Schema(
     {
         vol.Required("zone_label"): cv.string,
         vol.Required("unit_name"): cv.string,
-        vol.Required("source"): cv.string,
+        vol.Optional("source"): cv.string,
         vol.Required("signal_type"): cv.string,
         vol.Optional("context"): dict,
         vol.Optional("notes"): cv.string,
@@ -232,7 +232,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             """Handle homeops.post_vacuum_zone_signal service call."""
             zone_label: str       = call.data["zone_label"]
             unit_name: str        = call.data["unit_name"]
-            source: str           = call.data["source"]
+            source: str | None    = call.data.get("source")
             signal_type: str      = call.data["signal_type"]
             context: dict | None  = call.data.get("context")
             notes: str | None     = call.data.get("notes")
@@ -240,15 +240,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry_data = next(iter(hass.data[DOMAIN].values()))
             client_ref: HomeOpsClient = entry_data["client"]
 
+            payload: dict = dict(
+                zone_label=zone_label,
+                unit_name=unit_name,
+                signal_type=signal_type,
+                context=context,
+                notes=notes,
+            )
+            if source is not None:
+                payload["source"] = source
+
             try:
-                await client_ref.post_vacuum_zone_signal(
-                    zone_label=zone_label,
-                    unit_name=unit_name,
-                    source=source,
-                    signal_type=signal_type,
-                    context=context,
-                    notes=notes,
-                )
+                await client_ref.post_vacuum_zone_signal(**payload)
             except HomeOpsApiError as err:
                 raise HomeAssistantError(
                     f"HomeOps post_vacuum_zone_signal failed for zone '{zone_label}': {err}"
