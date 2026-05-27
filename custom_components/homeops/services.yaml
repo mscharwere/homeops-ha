@@ -129,6 +129,7 @@ post_vacuum_zone_signal:
       name: Unit Nickname
       description: >
         Unit nickname as stored in the HomeOps database (e.g. "Ethan", "Sam").
+        Case-insensitive match against the HomeOps DB nickname field.
       required: true
       example: Ethan
       selector:
@@ -162,7 +163,8 @@ post_vacuum_zone_signal:
     notes:
       name: Notes
       description: >
-        Optional free-text note stored on the zone row, e.g. "Oliver visited at 5:36PM".
+        Optional free-text note included in the signal log and socket event.
+        Not persisted to the zone record.
       required: false
       example: Front door opened 6:42PM
       selector:

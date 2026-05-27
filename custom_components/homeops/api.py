@@ -127,7 +127,7 @@ class HomeOpsClient:
             source:       Optional signal source identifier (e.g. 'petivity', 'ha.entry_door').
             context:      Optional dict of context modifiers, e.g.
                           {"weather": "rainy", "season": "fall"}.
-            notes:        Optional free-text note stored on the zone row.
+            notes:        Optional free-text note logged and emitted but not persisted to the zone row.
         """
         payload: dict = {
             "zone_label": zone_label,
@@ -136,9 +136,9 @@ class HomeOpsClient:
         }
         if source is not None:
             payload["source"] = source
-        if context:
+        if context is not None:
             payload["context"] = context
-        if notes:
+        if notes is not None:
             payload["notes"] = notes
         return await self._request("POST", API_VACUUM_ZONE_SIGNAL, json=payload)  # type: ignore[return-value]
 
