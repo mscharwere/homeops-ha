@@ -113,15 +113,16 @@ post_condition_signal:
 post_vacuum_zone_signal:
   name: Post Vacuum Zone Signal
   description: >
-    Post a dirtiness signal for a HomeOps vacuum zone. Used by automations that
-    detect zone-dirtying events (e.g. cat litter-box visits) and want to increment
-    the zone's cleanliness score in the HomeOps database. Supports optional cascade
-    to adjacent zones at a fractional weight.
+    Post a typed dirtiness signal for a HomeOps vacuum zone. HomeOps resolves the
+    signal weight from vacuum_signal_config and applies any matching context modifiers
+    (weather, season). Cascade to the parent zone is automatic via the contained_by
+    relationship — if this zone has a contained_by parent, that parent receives
+    cascade_pct% of the effective weight.
   fields:
     zone_label:
       name: Zone Label
       description: >
-        Zone label as configured in HomeOps, e.g. "Litter Box" or "Hallway".
+        Zone label as configured in HomeOps, e.g. "Litter Box".
       required: true
       example: Litter Box
       selector:
@@ -130,7 +131,7 @@ post_vacuum_zone_signal:
       name: Unit Nickname
       description: >
         Unit nickname as stored in the HomeOps database (e.g. "Ethan", "Sam").
-        The backend resolves by LOWER(nickname) — must match the DB row exactly.
+        Case-insensitive match against the HomeOps DB nickname field.
       required: true
       example: Ethan
       selector:
@@ -138,31 +139,35 @@ post_vacuum_zone_signal:
     source:
       name: Source
       description: >
-        Signal source identifier shown in HomeOps UI, e.g. "petivity".
-      required: true
+        Signal source identifier shown in HomeOps logs, e.g. "petivity", "ha.entry_door".
+      required: false
       example: petivity
       selector:
         text:
-    signal_weight:
-      name: Signal Weight
+    signal_type:
+      name: Signal Type
       description: >
-        Relative dirtiness contribution. Higher values accelerate the zone's
-        dirtiness score. Typical per-cat-visit values: Oliver=15, Pancho=8,
-        Sasha=8, unknown=10.
+        Key into vacuum_signal_config, e.g. "petivity_visit_oliver", "entry_door_open".
+        Must match a row exactly (case-sensitive). Manage weights in HomeOps Signal Config panel.
       required: true
-      example: 15
+      example: entry_door_open
       selector:
-        number:
-          min: 0
-          step: 0.5
-          mode: box
-    cascade:
-      name: Cascade Targets
+        text:
+    context:
+      name: Context
       description: >
-        Optional list of adjacent zones to receive a fractional share of this
-        signal. Each entry must have "zone_label" (string) and "weight_pct"
-        (0–100 percent, e.g. 40 for 40%). The backend divides by 100 internally.
+        Optional map of context conditions that scale the base weight.
+        Recognised keys: weather (rainy|muddy|clear), season (fall|spring|summer|winter).
       required: false
-      example: '[{"zone_label": "Hallway", "weight_pct": 40}]'
+      example: '{"weather": "rainy", "season": "fall"}'
       selector:
         object:
+    notes:
+      name: Notes
+      description: >
+        Optional free-text note included in the signal log and socket event.
+        Not persisted to the zone record.
+      required: false
+      example: Front door opened 6:42PM
+      selector:
+        text:

@@ -109,29 +109,37 @@ class HomeOpsClient:
         self,
         zone_label: str,
         unit_name: str,
-        source: str,
-        signal_weight: float,
-        cascade: list[dict] | None = None,
+        signal_type: str,
+        source: str | None = None,
+        context: dict | None = None,
+        notes: str | None = None,
     ) -> dict:
-        """POST /api/vacuum/zones/signal — post a dirtiness signal for a vacuum zone.
+        """POST /api/vacuum/zones/signal — post a typed dirtiness signal for a vacuum zone.
+
+        HomeOps owns weight computation. This client passes signal_type + context only.
 
         Args:
-            zone_label:    Zone label as configured in HomeOps (e.g. 'Litter Box').
-            unit_name:     Unit nickname as stored in the DB (e.g. 'Ethan').
-                           The backend resolves by LOWER(nickname) — must match exactly.
-            source:        Signal source identifier (e.g. 'petivity').
-            signal_weight: Relative dirtiness weight (positive float).
-            cascade:       Optional list of cascade targets, e.g.
-                           [{"zone_label": "Hallway", "weight_pct": 40}].
+            zone_label:   Zone label as configured in HomeOps (e.g. 'Litter Box').
+            unit_name:    Unit nickname as stored in the DB (e.g. 'Ethan').
+                          The backend resolves by LOWER(nickname) — must match exactly.
+            signal_type:  Key into vacuum_signal_config (e.g. 'petivity_visit_oliver').
+                          Must match a row exactly (case-sensitive).
+            source:       Optional signal source identifier (e.g. 'petivity', 'ha.entry_door').
+            context:      Optional dict of context modifiers, e.g.
+                          {"weather": "rainy", "season": "fall"}.
+            notes:        Optional free-text note logged and emitted but not persisted to the zone row.
         """
         payload: dict = {
             "zone_label": zone_label,
             "unit_name": unit_name,
-            "source": source,
-            "signal_weight": round(float(signal_weight), 4),
+            "signal_type": signal_type,
         }
-        if cascade is not None:
-            payload["cascade"] = cascade
+        if source is not None:
+            payload["source"] = source
+        if context is not None:
+            payload["context"] = context
+        if notes is not None:
+            payload["notes"] = notes
         return await self._request("POST", API_VACUUM_ZONE_SIGNAL, json=payload)  # type: ignore[return-value]
 
     # ── Internal ──────────────────────────────────────────────────────────────
