@@ -115,7 +115,9 @@ post_vacuum_zone_signal:
   description: >
     Post a typed dirtiness signal for a HomeOps vacuum zone. HomeOps resolves the
     signal weight from vacuum_signal_config and applies any matching context modifiers
-    (weather, season). Cascade to child zones is automatic via contained_by relationships.
+    (weather, season). Cascade to the parent zone is automatic via the contained_by
+    relationship — if this zone has a contained_by parent, that parent receives
+    cascade_pct% of the effective weight.
   fields:
     zone_label:
       name: Zone Label
