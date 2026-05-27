@@ -244,11 +244,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 zone_label=zone_label,
                 unit_name=unit_name,
                 signal_type=signal_type,
-                context=context,
-                notes=notes,
             )
             if source is not None:
                 payload["source"] = source
+            if context is not None:
+                payload["context"] = context
+            if notes is not None:
+                payload["notes"] = notes
 
             try:
                 await client_ref.post_vacuum_zone_signal(**payload)
