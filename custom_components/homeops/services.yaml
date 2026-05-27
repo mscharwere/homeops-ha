@@ -137,7 +137,7 @@ post_vacuum_zone_signal:
       name: Source
       description: >
         Signal source identifier shown in HomeOps logs, e.g. "petivity", "ha.entry_door".
-      required: true
+      required: false
       example: petivity
       selector:
         text:

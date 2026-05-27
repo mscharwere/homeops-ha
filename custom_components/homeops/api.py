@@ -109,8 +109,8 @@ class HomeOpsClient:
         self,
         zone_label: str,
         unit_name: str,
-        source: str,
         signal_type: str,
+        source: str | None = None,
         context: dict | None = None,
         notes: str | None = None,
     ) -> dict:
@@ -122,9 +122,9 @@ class HomeOpsClient:
             zone_label:   Zone label as configured in HomeOps (e.g. 'Litter Box').
             unit_name:    Unit nickname as stored in the DB (e.g. 'Ethan').
                           The backend resolves by LOWER(nickname) — must match exactly.
-            source:       Signal source identifier (e.g. 'petivity', 'ha.entry_door').
             signal_type:  Key into vacuum_signal_config (e.g. 'petivity_visit_oliver').
                           Must match a row exactly (case-sensitive).
+            source:       Optional signal source identifier (e.g. 'petivity', 'ha.entry_door').
             context:      Optional dict of context modifiers, e.g.
                           {"weather": "rainy", "season": "fall"}.
             notes:        Optional free-text note stored on the zone row.
@@ -132,9 +132,10 @@ class HomeOpsClient:
         payload: dict = {
             "zone_label": zone_label,
             "unit_name": unit_name,
-            "source": source,
             "signal_type": signal_type,
         }
+        if source is not None:
+            payload["source"] = source
         if context:
             payload["context"] = context
         if notes:
