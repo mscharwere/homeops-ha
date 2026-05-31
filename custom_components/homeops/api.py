@@ -9,6 +9,7 @@ from .const import (
     API_MAINT_COMPLETIONS,
     API_MAINT_CONDITIONS,
     API_MAINT_COUNTERS,
+    API_MAINT_INCREMENT_BY_CODE,
     API_MAINT_PICK,
     API_MAINT_SNOOZE,
     API_VACUUM_ZONE_SIGNAL,
@@ -59,6 +60,11 @@ class HomeOpsClient:
         """POST /api/maintenance/counters/:id/snooze — push due date by N days."""
         path = API_MAINT_SNOOZE.replace("{id}", str(counter_id))
         return await self._request("POST", path, json={"days": days})  # type: ignore[return-value]
+
+    async def increment_counter_by_code(self, code: str) -> dict:
+        """POST /api/maintenance/counters/by-code/:code/increment — increment a cycle counter by 1."""
+        path = API_MAINT_INCREMENT_BY_CODE.replace("{code}", code)
+        return await self._request("POST", path, json={})  # type: ignore[return-value]
 
     # ── Maintenance Picks ──────────────────────────────────────────────────────
 

@@ -22,6 +22,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     SERVICE_COMPLETE_ITEM,
+    SERVICE_INCREMENT_COUNTER,
     SERVICE_POST_CONDITION_SIGNAL,
     SERVICE_POST_VACUUM_ZONE_SIGNAL,
     SERVICE_SNOOZE_ITEM,
@@ -67,6 +68,12 @@ SCHEMA_POST_VACUUM_ZONE_SIGNAL = vol.Schema(
         vol.Required("signal_type"): cv.string,
         vol.Optional("context"): dict,
         vol.Optional("notes"): cv.string,
+    }
+)
+
+SCHEMA_INCREMENT_COUNTER = vol.Schema(
+    {
+        vol.Required("code"): vol.All(cv.string, vol.Match(r"^[a-z0-9_]{1,64}$")),
     }
 )
 
@@ -271,6 +278,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SCHEMA_POST_VACUUM_ZONE_SIGNAL,
         )
 
+    if not hass.services.has_service(DOMAIN, SERVICE_INCREMENT_COUNTER):
+        async def handle_increment_counter(call: ServiceCall) -> None:
+            """Handle homeops.increment_maintenance_counter service call."""
+            code: str = call.data["code"]
+
+            entry_data = next(iter(hass.data[DOMAIN].values()))
+            client_ref: HomeOpsClient = entry_data["client"]
+            coordinator_ref: HomeOpsCoordinator = entry_data["coordinator"]
+
+            try:
+                await client_ref.increment_counter_by_code(code)
+            except HomeOpsApiError as err:
+                raise HomeAssistantError(
+                    f"HomeOps increment_maintenance_counter failed for '{code}': {err}"
+                ) from err
+
+            await coordinator_ref.async_request_refresh()
+            _LOGGER.info("homeops.increment_maintenance_counter: incremented '%s'", code)
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_INCREMENT_COUNTER,
+            handle_increment_counter,
+            schema=SCHEMA_INCREMENT_COUNTER,
+        )
+
     return True
 
 
@@ -286,5 +319,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_remove(DOMAIN, SERVICE_SNOOZE_ITEM)
         hass.services.async_remove(DOMAIN, SERVICE_POST_CONDITION_SIGNAL)
         hass.services.async_remove(DOMAIN, SERVICE_POST_VACUUM_ZONE_SIGNAL)
+        hass.services.async_remove(DOMAIN, SERVICE_INCREMENT_COUNTER)
 
     return unloaded
