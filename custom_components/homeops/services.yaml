@@ -110,6 +110,23 @@ post_condition_signal:
           mode: box
           unit_of_measurement: hours
 
+increment_maintenance_counter:
+  name: Increment Maintenance Counter
+  description: >
+    Increment a cycle-based HomeOps maintenance counter by 1 using its catalog code.
+    Use for counters driven by HA events (e.g. feeder empty, appliance cycle completed).
+    The coordinator data is refreshed immediately after the API call.
+  fields:
+    code:
+      name: Catalog Code
+      description: >
+        The stable catalog code of the maintenance item, e.g. "oliver_feeder_clean".
+        Must match a counter_type='cycle' catalog item.
+      required: true
+      example: oliver_feeder_clean
+      selector:
+        text:
+
 post_vacuum_zone_signal:
   name: Post Vacuum Zone Signal
   description: >
