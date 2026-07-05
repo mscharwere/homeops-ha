@@ -33,6 +33,7 @@ SERVICE_SNOOZE_ITEM = "snooze_item"
 SERVICE_POST_CONDITION_SIGNAL = "post_condition_signal"
 SERVICE_POST_VACUUM_ZONE_SIGNAL = "post_vacuum_zone_signal"
 SERVICE_INCREMENT_COUNTER = "increment_maintenance_counter"
+SERVICE_LOG_VACUUM_MISSION = "log_vacuum_mission"
 
 # API paths
 API_HEALTH = "/health"
@@ -43,3 +44,4 @@ API_MAINT_SNOOZE = "/api/maintenance/counters/{id}/snooze"
 API_MAINT_CONDITIONS = "/api/maintenance/conditions/{code}"
 API_MAINT_INCREMENT_BY_CODE = "/api/maintenance/counters/by-code/{code}/increment"
 API_VACUUM_ZONE_SIGNAL = "/api/vacuum/zones/signal"
+API_VACUUM_MISSIONS_LOG = "/api/vacuum/missions/log"

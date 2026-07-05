@@ -12,6 +12,7 @@ from .const import (
     API_MAINT_INCREMENT_BY_CODE,
     API_MAINT_PICK,
     API_MAINT_SNOOZE,
+    API_VACUUM_MISSIONS_LOG,
     API_VACUUM_ZONE_SIGNAL,
 )
 
@@ -147,6 +148,62 @@ class HomeOpsClient:
         if notes is not None:
             payload["notes"] = notes
         return await self._request("POST", API_VACUUM_ZONE_SIGNAL, json=payload)  # type: ignore[return-value]
+
+    # ── Vacuum mission log ────────────────────────────────────────────────────
+
+    async def log_vacuum_mission(
+        self,
+        ha_entity_id: str,
+        error_code: int = 0,
+        duration_min: int | None = None,
+        started_at: int | None = None,
+        stuck_count: int | None = None,
+        panics_count: int | None = None,
+        plan_err: str | None = None,
+        initiator: str | None = None,
+        raw_state_snapshot: dict | None = None,
+        clean_status: str | None = None,
+        roborock_error: int | None = None,
+        roborock_error_desc: str | None = None,
+    ) -> dict:
+        """POST /api/vacuum/missions/log — log a completed/failed vacuum mission.
+
+        Args:
+            ha_entity_id:        HA entity ID for the robot (e.g. 'vacuum.sam').
+            error_code:          cleanMissionStatus.error; 0 = success (iRobot only).
+            duration_min:        Mission duration in minutes.
+            started_at:          Mission start as Unix seconds (cleanMissionStatus.mssnStrtTm).
+            stuck_count:         Lifetime stuck counter snapshot — bbrun.nStuck (iRobot only).
+            panics_count:        Lifetime panics counter — bbrun.nPanics (iRobot only).
+            plan_err:            Nav plan error string — mssnNavStats.plnErr (iRobot only).
+            initiator:           Mission initiator — cleanMissionStatus.initiator.
+            raw_state_snapshot:  Full iRobot raw_state dict; used for lifetime stuck baseline.
+            clean_status:        Terminal status string (Roborock only).
+            roborock_error:      0 = no error (Roborock only).
+            roborock_error_desc: Human-readable error description (Roborock only).
+        """
+        payload: dict = {"ha_entity_id": ha_entity_id, "error_code": error_code}
+        if duration_min is not None:
+            payload["duration_min"] = duration_min
+        if started_at is not None:
+            payload["started_at"] = started_at
+        if stuck_count is not None:
+            payload["stuck_count"] = stuck_count
+        if panics_count is not None:
+            payload["panics_count"] = panics_count
+        if plan_err is not None:
+            payload["plan_err"] = plan_err
+        if initiator is not None:
+            payload["initiator"] = initiator
+        if raw_state_snapshot is not None:
+            payload["raw_state_snapshot"] = raw_state_snapshot
+        if clean_status is not None:
+            payload["clean_status"] = clean_status
+        if roborock_error is not None:
+            payload["roborock_error"] = roborock_error
+        if roborock_error_desc is not None:
+            payload["roborock_error_desc"] = roborock_error_desc
+        return await self._request("POST", API_VACUUM_MISSIONS_LOG, json=payload)  # type: ignore[return-value]
 
     # ── Internal ──────────────────────────────────────────────────────────────
 

@@ -23,6 +23,7 @@ from .const import (
     DOMAIN,
     SERVICE_COMPLETE_ITEM,
     SERVICE_INCREMENT_COUNTER,
+    SERVICE_LOG_VACUUM_MISSION,
     SERVICE_POST_CONDITION_SIGNAL,
     SERVICE_POST_VACUUM_ZONE_SIGNAL,
     SERVICE_SNOOZE_ITEM,
@@ -74,6 +75,24 @@ SCHEMA_POST_VACUUM_ZONE_SIGNAL = vol.Schema(
 SCHEMA_INCREMENT_COUNTER = vol.Schema(
     {
         vol.Required("code"): vol.All(cv.string, vol.Match(r"^[a-z0-9_]{1,64}$")),
+    }
+)
+
+SCHEMA_LOG_VACUUM_MISSION = vol.Schema(
+    {
+        vol.Required("ha_entity_id"): cv.string,
+        vol.Optional("error_code", default=0): vol.All(int, vol.Range(min=0)),
+        vol.Optional("duration_min"): vol.All(int, vol.Range(min=0)),
+        vol.Optional("started_at"): vol.All(int, vol.Range(min=0)),
+        vol.Optional("stuck_count"): vol.All(int, vol.Range(min=0)),
+        vol.Optional("panics_count"): vol.All(int, vol.Range(min=0)),
+        vol.Optional("plan_err"): cv.string,
+        vol.Optional("initiator"): cv.string,
+        vol.Optional("raw_state_snapshot"): dict,
+        # Roborock-only
+        vol.Optional("clean_status"): cv.string,
+        vol.Optional("roborock_error"): vol.All(int, vol.Range(min=0)),
+        vol.Optional("roborock_error_desc"): cv.string,
     }
 )
 
@@ -304,6 +323,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SCHEMA_INCREMENT_COUNTER,
         )
 
+    if not hass.services.has_service(DOMAIN, SERVICE_LOG_VACUUM_MISSION):
+        async def handle_log_vacuum_mission(call: ServiceCall) -> None:
+            """Handle homeops.log_vacuum_mission service call."""
+            entry_data = next(iter(hass.data[DOMAIN].values()))
+            client_ref: HomeOpsClient = entry_data["client"]
+
+            try:
+                await client_ref.log_vacuum_mission(
+                    ha_entity_id=call.data["ha_entity_id"],
+                    error_code=call.data.get("error_code", 0),
+                    duration_min=call.data.get("duration_min"),
+                    started_at=call.data.get("started_at"),
+                    stuck_count=call.data.get("stuck_count"),
+                    panics_count=call.data.get("panics_count"),
+                    plan_err=call.data.get("plan_err"),
+                    initiator=call.data.get("initiator"),
+                    raw_state_snapshot=call.data.get("raw_state_snapshot"),
+                    clean_status=call.data.get("clean_status"),
+                    roborock_error=call.data.get("roborock_error"),
+                    roborock_error_desc=call.data.get("roborock_error_desc"),
+                )
+            except HomeOpsApiError as err:
+                raise HomeAssistantError(
+                    f"HomeOps log_vacuum_mission failed for '{call.data['ha_entity_id']}': {err}"
+                ) from err
+
+            _LOGGER.info(
+                "homeops.log_vacuum_mission: logged mission for %s (error_code=%d, duration_min=%s)",
+                call.data["ha_entity_id"],
+                call.data.get("error_code", 0),
+                call.data.get("duration_min"),
+            )
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_LOG_VACUUM_MISSION,
+            handle_log_vacuum_mission,
+            schema=SCHEMA_LOG_VACUUM_MISSION,
+        )
+
     return True
 
 
@@ -320,5 +379,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_remove(DOMAIN, SERVICE_POST_CONDITION_SIGNAL)
         hass.services.async_remove(DOMAIN, SERVICE_POST_VACUUM_ZONE_SIGNAL)
         hass.services.async_remove(DOMAIN, SERVICE_INCREMENT_COUNTER)
+        hass.services.async_remove(DOMAIN, SERVICE_LOG_VACUUM_MISSION)
 
     return unloaded
