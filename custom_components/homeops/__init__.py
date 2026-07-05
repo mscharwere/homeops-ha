@@ -81,17 +81,17 @@ SCHEMA_INCREMENT_COUNTER = vol.Schema(
 SCHEMA_LOG_VACUUM_MISSION = vol.Schema(
     {
         vol.Required("ha_entity_id"): cv.string,
-        vol.Optional("error_code", default=0): vol.All(int, vol.Range(min=0)),
-        vol.Optional("duration_min"): vol.All(int, vol.Range(min=0)),
-        vol.Optional("started_at"): vol.All(int, vol.Range(min=0)),
-        vol.Optional("stuck_count"): vol.All(int, vol.Range(min=0)),
-        vol.Optional("panics_count"): vol.All(int, vol.Range(min=0)),
+        vol.Optional("error_code", default=0): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional("duration_min"): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional("started_at"): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional("stuck_count"): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional("panics_count"): vol.All(vol.Coerce(int), vol.Range(min=0)),
         vol.Optional("plan_err"): cv.string,
         vol.Optional("initiator"): cv.string,
         vol.Optional("raw_state_snapshot"): dict,
         # Roborock-only
         vol.Optional("clean_status"): cv.string,
-        vol.Optional("roborock_error"): vol.All(int, vol.Range(min=0)),
+        vol.Optional("roborock_error"): vol.All(vol.Coerce(int), vol.Range(min=0)),
         vol.Optional("roborock_error_desc"): cv.string,
     }
 )
