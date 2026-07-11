@@ -99,7 +99,7 @@ automation:
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ box_location == 'Family room' }}"
+                value_template: "{{ box_location | trim == 'Family room' }}"
             sequence:
               - action: homeops.post_vacuum_zone_signal
                 data:
@@ -110,7 +110,7 @@ automation:
                   notes: "{{ raw_title }}"
           - conditions:
               - condition: template
-                value_template: "{{ box_location == 'Downstairs monitor' }}"
+                value_template: "{{ box_location | trim == 'Downstairs monitor' }}"
             sequence:
               - action: homeops.post_vacuum_zone_signal
                 data:
@@ -133,6 +133,6 @@ automation:
           message: >
             Petivity: {{ raw_title | default('(no title)') }}
             → cat={{ cat_name }}, box={{ box_location }}, signal_type={{ cat_signal_type | trim }}
-            → unit={{ 'Saros' if box_location == 'Downstairs monitor' else 'Ethan' }}
+            → unit={{ 'Saros' if box_location | trim == 'Downstairs monitor' else 'Ethan' }}
             → HomeOps signal posted (Litter Box; cascade auto-derived from contained_by)
           level: info
