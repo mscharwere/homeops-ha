@@ -1,0 +1,4 @@
+# Test-only dependencies. Home Assistant is deliberately NOT required — see
+# tests/conftest.py for how the modules under test are loaded in isolation.
+aiohttp>=3.9
+pytest>=8.0

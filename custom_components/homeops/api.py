@@ -17,6 +17,60 @@ from .const import (
 )
 
 
+# Envelope keys carry no diagnostic value once `error` has been pulled out.
+# Everything else in an error body is context the backend deliberately included.
+_ERROR_ENVELOPE_KEYS = frozenset({"ok", "data", "error", "message"})
+
+# Error details land in the HA log and in service-call failures; keep them
+# readable rather than dumping an unbounded payload.
+_MAX_ERROR_DETAIL = 300
+
+
+async def _error_detail(resp: aiohttp.ClientResponse) -> str:
+    """Render a diagnostic string from a non-2xx response body.
+
+    The HomeOps backend returns a structured body on every error, and that body
+    IS the diagnosis. A zone signal for a retired zone, for example, answers
+    exactly why it failed::
+
+        {"ok": false, "error": "zone_not_found",
+         "unit_name": "Ethan", "zone_label": "Hallway"}
+
+    404 responses used to be raised as a bare ``f"404: {path} not found"``,
+    discarding this body entirely — which made a stale ``unit_name`` in an
+    automation indistinguishable from a wrong URL, a deleted zone, or a
+    misconfigured base URL. Every branch now preserves the server's own reason.
+
+    Falls back to the raw text, then to the HTTP reason, when the body is not
+    JSON (empty response, proxy error page, truncated payload).
+    """
+    try:
+        body = await resp.json(content_type=None)
+    except Exception:  # noqa: BLE001 — body may be empty, HTML, or malformed
+        try:
+            text = (await resp.text()).strip()
+        except Exception:  # noqa: BLE001 — connection may already be gone
+            text = ""
+        return text[:_MAX_ERROR_DETAIL] or resp.reason or "unknown error"
+
+    if not isinstance(body, dict):
+        return str(body)[:_MAX_ERROR_DETAIL]
+
+    error = body.get("error") or body.get("message") or resp.reason or "unknown error"
+
+    # Scalar extras only — nested structures are noise in a one-line log message.
+    context = {
+        key: value
+        for key, value in body.items()
+        if key not in _ERROR_ENVELOPE_KEYS and not isinstance(value, (dict, list))
+    }
+    if context:
+        rendered = ", ".join(f"{k}={v}" for k, v in sorted(context.items()))
+        return f"{error} ({rendered})"[:_MAX_ERROR_DETAIL]
+
+    return str(error)[:_MAX_ERROR_DETAIL]
+
+
 class HomeOpsApiError(Exception):
     """Raised when the HomeOps API returns a non-2xx response."""
 
@@ -217,15 +271,11 @@ class HomeOpsClient:
                     raise HomeOpsAuthError("Invalid or missing API key")
                 if resp.status == 403:
                     raise HomeOpsAuthError("Insufficient permissions")
-                if resp.status == 404:
-                    raise HomeOpsApiError(f"404: {path} not found")
                 if not resp.ok:
-                    try:
-                        body = await resp.json()
-                        msg = body.get("error", resp.reason)
-                    except Exception:
-                        msg = resp.reason
-                    raise HomeOpsApiError(f"API error {resp.status}: {msg}")
+                    raise HomeOpsApiError(
+                        f"API error {resp.status} on {path}: "
+                        f"{await _error_detail(resp)}"
+                    )
                 return await resp.json()
         except aiohttp.ClientError as err:
             raise HomeOpsApiError(f"Connection error: {err}") from err
