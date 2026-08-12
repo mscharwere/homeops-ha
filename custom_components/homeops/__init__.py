@@ -83,6 +83,22 @@ SCHEMA_LOG_VACUUM_MISSION = vol.Schema(
         vol.Required("ha_entity_id"): cv.string,
         vol.Optional("error_code", default=0): vol.All(vol.Coerce(int), vol.Range(min=0)),
         vol.Optional("duration_min"): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        # Roborock active-cleaning telemetry. Float, not int: cleaning_time arrives
+        # fractional (e.g. 7.43 min) and short runs are legitimately sub-minute, so
+        # Coerce(int) would round the signal away.
+        #
+        # vol.Any(None, ...) is REQUIRED, not stylistic. The Saros automation sends
+        # `none` when a sensor is unreadable, deliberately, so the backend SKIPS its
+        # duration check instead of judging on a missing reading. vol.Coerce(float)
+        # raises on None (verified), so a bare coercer here would reject the whole
+        # service call on exactly that path — the same class of failure as omitting
+        # these keys entirely, just rarer and therefore harder to spot.
+        vol.Optional("active_duration_min"): vol.Any(
+            None, vol.All(vol.Coerce(float), vol.Range(min=0))
+        ),
+        vol.Optional("cleaned_area_m2"): vol.Any(
+            None, vol.All(vol.Coerce(float), vol.Range(min=0))
+        ),
         vol.Optional("started_at"): vol.All(vol.Coerce(int), vol.Range(min=0)),
         vol.Optional("stuck_count"): vol.All(vol.Coerce(int), vol.Range(min=0)),
         vol.Optional("panics_count"): vol.All(vol.Coerce(int), vol.Range(min=0)),
@@ -334,6 +350,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     ha_entity_id=call.data["ha_entity_id"],
                     error_code=call.data.get("error_code", 0),
                     duration_min=call.data.get("duration_min"),
+                    active_duration_min=call.data.get("active_duration_min"),
+                    cleaned_area_m2=call.data.get("cleaned_area_m2"),
                     started_at=call.data.get("started_at"),
                     stuck_count=call.data.get("stuck_count"),
                     panics_count=call.data.get("panics_count"),

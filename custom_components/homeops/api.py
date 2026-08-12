@@ -210,6 +210,8 @@ class HomeOpsClient:
         ha_entity_id: str,
         error_code: int = 0,
         duration_min: int | None = None,
+        active_duration_min: float | None = None,
+        cleaned_area_m2: float | None = None,
         started_at: int | None = None,
         stuck_count: int | None = None,
         panics_count: int | None = None,
@@ -225,7 +227,16 @@ class HomeOpsClient:
         Args:
             ha_entity_id:        HA entity ID for the robot (e.g. 'vacuum.sam').
             error_code:          cleanMissionStatus.error; 0 = success (iRobot only).
-            duration_min:        Mission duration in minutes.
+            duration_min:        Mission duration in minutes. For iRobot this is
+                                 cleanMissionStatus.mssnM (active minutes); for Roborock the
+                                 HA automation derives it from last_clean_end - last_clean_begin,
+                                 so it is WALL-CLOCK and includes paused/stuck time.
+            active_duration_min: Roborock only — sensor.saros_10r_cleaning_time (min). Time spent
+                                 ACTUALLY cleaning, excluding paused/stuck. The backend's
+                                 duration_short check compares this for Roborock; duration_min is
+                                 still sent because the gap between the two is a stall signal.
+                                 None when the sensor is unreadable → omitted → check skipped.
+            cleaned_area_m2:     Roborock only — sensor.saros_10r_cleaning_area (m²).
             started_at:          Mission start as Unix seconds (cleanMissionStatus.mssnStrtTm).
             stuck_count:         Lifetime stuck counter snapshot — bbrun.nStuck (iRobot only).
             panics_count:        Lifetime panics counter — bbrun.nPanics (iRobot only).
@@ -239,6 +250,13 @@ class HomeOpsClient:
         payload: dict = {"ha_entity_id": ha_entity_id, "error_code": error_code}
         if duration_min is not None:
             payload["duration_min"] = duration_min
+        # None is omitted rather than sent as 0. The backend treats an absent value as
+        # "no reading" and skips its duration check; a 0 would read as "cleaned for zero
+        # minutes" and flag duration_short on every mission with an unreadable sensor.
+        if active_duration_min is not None:
+            payload["active_duration_min"] = active_duration_min
+        if cleaned_area_m2 is not None:
+            payload["cleaned_area_m2"] = cleaned_area_m2
         if started_at is not None:
             payload["started_at"] = started_at
         if stuck_count is not None:
