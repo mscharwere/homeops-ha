@@ -76,11 +76,26 @@ def _schema_keys() -> set[str]:
     raise AssertionError("SCHEMA_LOG_VACUUM_MISSION not found in __init__.py")
 
 
-def _handler_data_keys() -> set[str]:
-    """Keys the handler reads via call.data.get(...) / call.data[...]."""
-    tree = _init_tree()
+def _handler_node(func_name: str) -> ast.AST:
+    """Locate one service handler's function node.
+
+    Scoping matters: __init__.py defines six handlers (complete_item, snooze_item,
+    post_condition_signal, post_vacuum_zone_signal, increment_counter and this
+    one), all reading their own call.data keys. A module-wide walk mixes every
+    service's keys together, and comparing that union against ONE schema is
+    meaningless — which is exactly how the earlier version of this test ended up
+    filtering the union back down until it could never fail.
+    """
+    for node in ast.walk(_init_tree()):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == func_name:
+            return node
+    raise AssertionError(f"{func_name} not found in __init__.py")
+
+
+def _handler_data_keys(func_name: str = "handle_log_vacuum_mission") -> set[str]:
+    """Keys the named handler reads via call.data.get(...) / call.data[...]."""
     keys: set[str] = set()
-    for node in ast.walk(tree):
+    for node in ast.walk(_handler_node(func_name)):
         # call.data.get("x")
         if (
             isinstance(node, ast.Call)
@@ -129,15 +144,51 @@ def test_schema_allows_none_for_new_field(field):
 def test_every_handler_field_is_declared_in_the_schema():
     """Structural guard against this whole bug class recurring.
 
-    Any field the handler forwards must be declared, or PREVENT_EXTRA rejects the
-    call. Scoped to the mission-log schema's own concern by ignoring keys that
-    belong to the other homeops services.
+    Any field the handler forwards must be declared in the schema, or voluptuous
+    PREVENT_EXTRA rejects the entire service call.
+
+    ── Why this is a straight set difference ─────────────────────────────────────
+    The first version of this test read:
+
+        mission_keys = {k for k in handler_keys if k in schema_keys or k in NEW_FIELDS}
+        missing = mission_keys - schema_keys
+
+    which could never fail. `mission_keys` was an INCLUSION filter, so it was a
+    subset of `schema_keys | NEW_FIELDS` by construction — and since NEW_FIELDS
+    are themselves declared in the schema, `mission_keys - schema_keys` was
+    provably always empty. A genuinely undeclared field was filtered out before
+    it could ever reach the assertion. ARIIA caught it by mutation-testing:
+    adding an undeclared field to the handler left the test passing.
+
+    The filter existed to stop OTHER services' call.data keys leaking in from a
+    module-wide AST walk. That is now solved properly by scoping the walk to this
+    handler's own body (see _handler_node), so no filtering is needed and the
+    comparison can be direct.
     """
     schema_keys = _schema_keys()
     handler_keys = _handler_data_keys()
-    mission_keys = {k for k in handler_keys if k in schema_keys or k in NEW_FIELDS}
-    missing = mission_keys - schema_keys
+
+    # Guard the guard: if the scoping ever silently matched nothing, the set
+    # difference below would be trivially empty and pass for the wrong reason.
+    assert handler_keys, "no call.data keys found — handler scoping is broken"
+
+    missing = handler_keys - schema_keys
     assert not missing, f"handler reads fields absent from the schema: {sorted(missing)}"
+
+
+def test_handler_scoping_excludes_other_services_keys():
+    """The scoping must be tight, not just non-empty.
+
+    'unit_name' belongs to post_vacuum_zone_signal and must never appear in the
+    mission-log handler's key set — if it does, the walk has escaped its function
+    and the guard above is comparing the wrong thing against the schema.
+    """
+    mission_keys = _handler_data_keys()
+    other_keys = _handler_data_keys("handle_post_vacuum_zone_signal")
+
+    assert "ha_entity_id" in mission_keys
+    assert "unit_name" in other_keys, "fixture assumption: this key identifies the other handler"
+    assert "unit_name" not in mission_keys
 
 
 # ── API client payload behaviour (executed) ──────────────────────────────────
